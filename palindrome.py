@@ -1,20 +1,15 @@
 def is_palindrome(s):
     """
     Check if a string is a palindrome.
-    Ignores spaces and case sensitivity.
+    Ignores non-alphanumeric characters and case.
     """
-    # Remove spaces and convert to lowercase
-    cleaned = s.replace(" ", "").lower()
-    
-    # Compare string with its reverse
+    cleaned = "".join(c.lower() for c in s if c.isalnum())
     return cleaned == cleaned[::-1]
 
 
-# Get user input
-user_input = input("Enter a string to check if it's a palindrome: ")
-
-# Check and display result
-if is_palindrome(user_input):
-    print(f"'{user_input}' is a palindrome!")
-else:
-    print(f"'{user_input}' is not a palindrome.")
+if __name__ == "__main__":
+    user_input = input("Enter a string to check if it's a palindrome: ")
+    if is_palindrome(user_input):
+        print(f"'{user_input}' is a palindrome!")
+    else:
+        print(f"'{user_input}' is not a palindrome.")
