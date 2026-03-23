@@ -1,6 +1,6 @@
 def is_palindrome(s):
     """
-    Check if a string is a palindrome.
+     if a string is a palindrome.
     Ignores non-alphanumeric characters and case.
     """
     cleaned = "".join(c.lower() for c in s if c.isalnum())
