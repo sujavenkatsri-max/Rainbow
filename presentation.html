@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — Presentation | LG_TDS_ENT</title>
+<style>
+  :root {
+    --bg:      #08090e;
+    --surface: #111320;
+    --card:    #161929;
+    --border:  #1e2238;
+    --accent:  #6366f1;
+    --accent2: #10b981;
+    --accent3: #f59e0b;
+    --red:     #ef4444;
+    --blue:    #3b82f6;
+    --purple:  #8b5cf6;
+    --text:    #e2e8f0;
+    --muted:   #64748b;
+    --dim:     #334155;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── Slide Container ── */
+  .deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4rem 6rem;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.prev {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* ── Navigation ── */
+  .nav {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 100;
+  }
+  .nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .nav-btn:hover { background: var(--card); border-color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-counter {
+    font-size: 0.8rem;
+    color: var(--muted);
+    min-width: 4rem;
+    text-align: center;
+  }
+  .dots {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dim);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .dot.active { background: var(--accent); transform: scale(1.4); }
+
+  /* ── Slide progress bar ── */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    transition: width 0.4s ease;
+    z-index: 200;
+  }
+
+  /* ── Slide number ── */
+  .slide-num {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    z-index: 100;
+  }
+
+  /* ── Team badge ── */
+  .team-pill {
+    position: fixed;
+    top: 1.1rem;
+    left: 1.5rem;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+    color: white;
+    padding: 0.25rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    z-index: 100;
+  }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  h1.hero {
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #e2e8f0 0%, #a5b4fc 50%, #c4b5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+  }
+  h1.slide-title {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    line-height: 1.2;
+  }
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--muted);
+    max-width: 600px;
+    line-height: 1.7;
+  }
+  code {
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+  }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    gap: 1.25rem;
+    width: 100%;
+  }
+  .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .s-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .s-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(99,102,241,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .s-card.green::before  { background: linear-gradient(135deg, rgba(16,185,129,0.07) 0%, transparent 60%); }
+  .s-card.amber::before  { background: linear-gradient(135deg, rgba(245,158,11,0.07) 0%, transparent 60%); }
+  .s-card.red::before    { background: linear-gradient(135deg, rgba(239,68,68,0.07) 0%, transparent 60%); }
+  .s-card.blue::before   { background: linear-gradient(135deg, rgba(59,130,246,0.07) 0%, transparent 60%); }
+  .s-card.purple::before { background: linear-gradient(135deg, rgba(139,92,246,0.07) 0%, transparent 60%); }
+
+  .s-card-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  .s-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .s-card p  { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── Stat numbers ── */
+  .big-stat { font-size: clamp(3rem, 5vw, 4.5rem); font-weight: 800; color: var(--accent); line-height: 1; }
+  .big-stat.green  { color: var(--accent2); }
+  .big-stat.amber  { color: var(--accent3); }
+
+  /* ── Accent line ── */
+  .accent-bar {
+    width: 3rem; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    border-radius: 2px;
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Tag pills ── */
+  .tag {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .tag-indigo { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .tag-green  { background: rgba(16,185,129,0.15); color: #34d399; }
+  .tag-amber  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .tag-red    { background: rgba(239,68,68,0.15);  color: #f87171; }
+  .tag-blue   { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .tag-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+
+  /* ── Flow steps ── */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    width: 100%;
+    font-size: 0.85rem;
+  }
+  .flow-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    flex: 1;
+    text-align: center;
+    font-weight: 500;
+    font-size: 0.82rem;
+  }
+  .flow-box.lit { border-color: var(--accent); color: #a5b4fc; background: rgba(99,102,241,0.07); }
+  .flow-arrow-r { color: var(--dim); font-size: 1.2rem; flex-shrink: 0; }
+
+  /* ── Quote ── */
+  .quote-block {
+    max-width: 720px;
+    text-align: center;
+  }
+  .quote-mark { font-size: 4rem; color: var(--accent); line-height: 0.5; margin-bottom: 1rem; display: block; }
+  .quote-text { font-size: 1.5rem; font-weight: 500; line-height: 1.5; font-style: italic; color: var(--text); }
+  .quote-attr { margin-top: 1.5rem; font-size: 0.85rem; color: var(--muted); }
+
+  /* ── Tool list ── */
+  .tool-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .tool-row:last-child { border-bottom: none; }
+  .tool-num { color: var(--accent); font-weight: 700; min-width: 1.5rem; }
+  .tool-name { color: #a5b4fc; font-family: 'Cascadia Code', monospace; min-width: 11rem; font-size: 0.82rem; }
+  .tool-desc { color: var(--muted); }
+
+  /* ── Anomaly table ── */
+  .anom-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 2fr;
+    gap: 0.5rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    align-items: center;
+  }
+  .anom-row.header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  /* ── Slide-specific backgrounds ── */
+  .slide-hero { background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%); }
+  .slide-problem { background: radial-gradient(ellipse at 80% 80%, rgba(239,68,68,0.05) 0%, transparent 60%); }
+  .slide-agent { background: radial-gradient(ellipse at 30% 70%, rgba(16,185,129,0.05) 0%, transparent 60%); }
+  .slide-arch { background: radial-gradient(ellipse at 70% 30%, rgba(99,102,241,0.06) 0%, transparent 55%); }
+
+  /* ── Guardrail table ── */
+  .g-row {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr 2fr;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid rgba(30,34,56,0.8);
+    font-size: 0.82rem;
+    align-items: center;
+  }
+  .g-row.header { color: var(--muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ── Wide layout (non-centered) ── */
+  .slide-wide {
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 3rem 5rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress" id="progress"></div>
+<div class="team-pill">LG_TDS_ENT</div>
+<div class="slide-num" id="slide-num"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ══ SLIDE 1: Hero ══════════════════════════════════════════ -->
+  <div class="slide slide-hero active" id="slide-0">
+    <div style="text-align:center; max-width:820px;">
+      <div class="eyebrow">Hackathon 2026 · Team LG_TDS_ENT</div>
+      <h1 class="hero">ARIA</h1>
+      <div style="font-size:1.1rem; color:var(--muted); margin-bottom:2rem; letter-spacing:0.02em;">
+        Automated Root-cause &amp; Insights Analyst<br>
+        <span style="color:var(--text)">STB KPI Monitoring &amp; Agentic Analysis Platform</span>
+      </div>
+      <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+        <span class="tag tag-indigo">Streamlit Dashboard</span>
+        <span class="tag tag-green">Real-time SQLite Engine</span>
+        <span class="tag tag-purple">ReAct AI Agent</span>
+        <span class="tag tag-amber">4 Platforms · 22 Metrics</span>
+        <span class="tag tag-blue">25,344 Seeded Rows</span>
+      </div>
+      <div style="margin-top:3rem; font-size:0.8rem; color:var(--muted);">Press → or click Next to navigate</div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 2: The Problem ══════════════════════════════════ -->
+  <div class="slide slide-problem" id="slide-1">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">The Problem</div>
+      <h1 class="slide-title">Operations engineers are drowning<br>in data but starved for insight</h1>
+      <div class="accent-bar"></div>
+      <div class="card-grid cols-3">
+        <div class="s-card red">
+          <div class="s-card-icon">📉</div>
+          <h3>Reactive Posture</h3>
+          <p>Issues discovered after user complaints, not proactively. Mean time to detect = hours.</p>
+        </div>
+        <div class="s-card amber">
+          <div class="s-card-icon">🔍</div>
+          <h3>Slow Root-Cause</h3>
+          <p>Manual comparison of pre/post windows across multiple dashboards takes 30–60 minutes per incident.</p>
+        </div>
+        <div class="s-card">
+          <div class="s-card-icon">🧠</div>
+          <h3>Institutional Knowledge Gap</h3>
+          <p>Past incident patterns buried in tickets. No automated memory of what happened before.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 3: ARIA Answer ══════════════════════════════════ -->
+  <div class="slide" id="slide-2">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">The Solution</div>
+      <h1 class="slide-title">ARIA answers in natural language,<br>backed by live telemetry</h1>
+      <div class="accent-bar"></div>
+      <div style="margin-bottom:1.75rem;">
+        <div class="flow-row">
+          <div class="flow-box lit">👤 Engineer asks:<br><em>"What changed on Apollo in the last 4 hours?"</em></div>
+          <div class="flow-arrow-r">→</div>
+          <div class="flow-box lit">🤖 ARIA resolves time<br><code>resolve_time_reference</code></div>
+          <div class="flow-arrow-r">→</div>
+          <div class="flow-box lit">📊 Compares windows<br><code>compare_kpi_windows</code></div>
+          <div class="flow-arrow-r">→</div>
+          <div class="flow-box lit">💬 Cites ERR_2003<br>+240% — Degraded</div>
+        </div>
+      </div>
+      <div class="card-grid cols-2">
+        <div class="s-card green">
+          <div class="s-card-icon">⚡</div>
+          <h3>From 30 min to 10 seconds</h3>
+          <p>What previously required navigating multiple dashboards and writing SQL is now a single sentence.</p>
+        </div>
+        <div class="s-card blue">
+          <div class="s-card-icon">🧩</div>
+          <h3>Grounded — never hallucinated</h3>
+          <p>Every number ARIA cites is pulled directly from a tool result in the current conversation turn. Zero fabrication.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 4: Two Subsystems ══════════════════════════════ -->
+  <div class="slide slide-arch" id="slide-3">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">Architecture Overview</div>
+      <h1 class="slide-title">Two integrated subsystems,<br>one SQLite database</h1>
+      <div class="accent-bar"></div>
+      <div class="card-grid cols-2">
+        <div class="s-card">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem;">Subsystem A</div>
+          <h3>🔄 Background Data Engine</h3>
+          <p style="margin-bottom:0.75rem;">Daemon thread that continuously generates and stores realistic STB telemetry.</p>
+          <div style="font-size:0.78rem; color:var(--text); line-height:1.8;">
+            • <strong>metric_ingest</strong> — 88 records every 10s (DEMO)<br>
+            • <strong>anomaly_scan</strong> — z-score scan every 120s<br>
+            • <strong>data_retention</strong> — purge &gt;48h every hour<br>
+            • <strong>seed_data</strong> — 25,344 rows on first launch
+          </div>
+        </div>
+        <div class="s-card purple">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--purple); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem;">Subsystem B</div>
+          <h3>📊 Dashboard + ARIA Agent</h3>
+          <p style="margin-bottom:0.75rem;">Three live panels, KPI Analyzer, and an embedded ReAct agent.</p>
+          <div style="font-size:0.78rem; color:var(--text); line-height:1.8;">
+            • <strong>Panel 1</strong> — Error Rate Monitor (line chart)<br>
+            • <strong>Panel 2</strong> — Crash Rate Tracker (stacked bar)<br>
+            • <strong>Panel 3</strong> — CPU / Memory (dual-axis)<br>
+            • <strong>KPI Analyzer</strong> — Window comparison + CSV<br>
+            • <strong>ARIA</strong> — ReAct agent with 7 tools
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:1.25rem; font-size:0.82rem; color:var(--muted);">
+        Sole writer: Background Engine &nbsp;·&nbsp; Read-only: all panels + agent
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 5: Data Engine ══════════════════════════════════ -->
+  <div class="slide" id="slide-4">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">Background Data Engine</div>
+      <h1 class="slide-title">Realistic telemetry with<br>three pre-wired demo anomalies</h1>
+      <div class="accent-bar"></div>
+
+      <!-- Anomaly table -->
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem; margin-bottom:1.25rem;">
+        <div class="anom-row header">
+          <div>Event</div><div>Platform</div><div>Window</div><div>Multiplier</div><div>Purpose</div>
+        </div>
+        <div class="anom-row">
+          <div>🔴 DRM Outage</div>
+          <div><span class="tag tag-blue">Apollo</span></div>
+          <div>T−4h → T−2h</div>
+          <div><strong style="color:var(--red)">4.5×</strong></div>
+          <div style="color:var(--muted)">ERR_2003 / ERR_2004 spike (+240%)</div>
+        </div>
+        <div class="anom-row">
+          <div>🟡 OOM Crash Wave</div>
+          <div><span class="tag tag-purple">EOS</span></div>
+          <div>T−3h → T−2.5h</div>
+          <div><strong style="color:var(--accent3)">3.0×</strong></div>
+          <div style="color:var(--muted)">CRR_3002 / CRR_3006 → crash storm</div>
+        </div>
+        <div class="anom-row">
+          <div>🟢 CPU Spike</div>
+          <div><span class="tag tag-green">Horizon</span></div>
+          <div>T−1.5h → T−1h</div>
+          <div><strong style="color:var(--accent2)">1.6×</strong></div>
+          <div style="color:var(--muted)">CPU_AVG / CPU_P95 → thermal throttle</div>
+        </div>
+      </div>
+
+      <div class="card-grid cols-3">
+        <div class="s-card">
+          <div class="big-stat" style="font-size:2.5rem;">88</div>
+          <div style="font-size:0.8rem; color:var(--muted);">Records per tick<br>4 platforms × 22 codes</div>
+        </div>
+        <div class="s-card green">
+          <div class="big-stat green" style="font-size:2.5rem;">25,344</div>
+          <div style="font-size:0.8rem; color:var(--muted);">Seeded rows<br>288 timestamps × 88</div>
+        </div>
+        <div class="s-card amber">
+          <div class="big-stat amber" style="font-size:2.5rem;">4.5×</div>
+          <div style="font-size:0.8rem; color:var(--muted);">Peak anomaly multiplier<br>+240% ERR_2003 observed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 6: The 7 Tools ══════════════════════════════════ -->
+  <div class="slide slide-agent" id="slide-5">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">ARIA Agent</div>
+      <h1 class="slide-title">7 specialized tools,<br>all reading from SQLite</h1>
+      <div class="accent-bar"></div>
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem;">
+        <div class="tool-row">
+          <div class="tool-num">1</div>
+          <div class="tool-name">query_metrics</div>
+          <div class="tool-desc">Parameterized timeseries query. <span class="tag tag-red">G2</span> Rejects ranges &gt;48h</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">2</div>
+          <div class="tool-name">compare_kpi_windows</div>
+          <div class="tool-desc">Window A vs B delta with Degraded / Improved / Stable classification</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">3</div>
+          <div class="tool-name">detect_anomalies</div>
+          <div class="tool-desc">Z-score vs 24h rolling baseline. Writes to long-term memory. Critical z≥3.0</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">4</div>
+          <div class="tool-name">get_top_movers</div>
+          <div class="tool-desc">Top N KPIs by |pct_change|. Delegates to compare_kpi_windows internally</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">5</div>
+          <div class="tool-name">get_current_snapshot</div>
+          <div class="tool-desc">Latest 5-min window only — fastest tool for "what's happening right now?"</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">6</div>
+          <div class="tool-name">resolve_time_reference</div>
+          <div class="tool-desc">NLP → ISO 8601 snapped to 5-min. Handles "3 PM", "2h ago", "this morning"</div>
+        </div>
+        <div class="tool-row">
+          <div class="tool-num">7</div>
+          <div class="tool-name">summarize_panel</div>
+          <div class="tool-desc">Trend (first-half vs second-half), top codes, threshold breaches, narrative</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 7: Memory System ════════════════════════════════ -->
+  <div class="slide" id="slide-6">
+    <div style="width:100%; max-width:920px;">
+      <div class="eyebrow">Agent Memory</div>
+      <h1 class="slide-title">Two-tier memory: session context<br>+ long-term anomaly recall</h1>
+      <div class="accent-bar"></div>
+      <div class="card-grid cols-2">
+        <div class="s-card blue">
+          <div class="s-card-icon">🧠</div>
+          <h3>Short-Term — <code>agent_conversation</code></h3>
+          <div style="font-size:0.82rem; color:var(--muted); line-height:1.7; margin-top:0.5rem;">
+            • Last 20 turns per <code>session_id</code><br>
+            • Loaded on every <code>run_agent()</code> call<br>
+            • Saved after every <code>end_turn</code><br>
+            • Trimmed between turns — never mid-loop<br>
+            • Enables multi-question context
+          </div>
+        </div>
+        <div class="s-card purple">
+          <div class="s-card-icon">📚</div>
+          <h3>Long-Term — <code>agent_memory</code></h3>
+          <div style="font-size:0.82rem; color:var(--muted); line-height:1.7; margin-top:0.5rem;">
+            • Written by <code>detect_anomalies</code> tool<br>
+            • 7-day retention with auto-purge<br>
+            • Dedup: skip if same (code, platform) within 30 min<br>
+            • Injected as context when user asks<br>&nbsp;&nbsp;&nbsp;"has this happened before?"
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem;">
+        <div style="font-size:0.78rem; color:var(--accent); font-weight:700; margin-bottom:0.5rem;">EXAMPLE LONG-TERM MEMORY INJECTION</div>
+        <div style="font-family:'Cascadia Code','Fira Code',monospace; font-size:0.78rem; color:var(--muted); line-height:1.6;">
+          [2026-03-26T11:05] ERR_2003 on Apollo: z-score=4.2, observed=13.9, baseline=3.1 — <span style="color:var(--red)">critical</span><br>
+          [2026-03-25T18:30] ERR_2003 on Apollo: z-score=3.8, observed=12.4, baseline=3.1 — <span style="color:var(--red)">critical</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 8: Guardrails ═══════════════════════════════════ -->
+  <div class="slide" id="slide-7">
+    <div style="width:100%; max-width:900px;">
+      <div class="eyebrow">Safety &amp; Guardrails</div>
+      <h1 class="slide-title">10 guardrails — zero hallucination,<br>zero external calls</h1>
+      <div class="accent-bar"></div>
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem;">
+        <div class="g-row header"><div>ID</div><div>Guardrail</div><div>Behavior</div></div>
+        <div class="g-row"><div><span class="tag tag-red">G1</span></div><div>Max 6 iterations</div><div style="color:var(--muted)">Returns partial findings — never hangs</div></div>
+        <div class="g-row"><div><span class="tag tag-red">G2</span></div><div>48h query cap</div><div style="color:var(--muted)">Tool returns error; agent explains to user</div></div>
+        <div class="g-row"><div><span class="tag tag-amber">G3</span></div><div>No data fabrication</div><div style="color:var(--muted)">Empty result → explicit "no data available" message</div></div>
+        <div class="g-row"><div><span class="tag tag-green">G5</span></div><div>Read-only agent</div><div style="color:var(--muted)">Zero INSERT/UPDATE/DELETE in any agent tool</div></div>
+        <div class="g-row"><div><span class="tag tag-blue">G7</span></div><div>Hallucination check</div><div style="color:var(--muted)">All numbers must trace to tool result in current turn</div></div>
+        <div class="g-row"><div><span class="tag tag-blue">G8</span></div><div>Divide-by-zero</div><div style="color:var(--muted)">Returns <code>"+inf%"</code> string — never raises exception</div></div>
+        <div class="g-row"><div><span class="tag tag-purple">G9</span></div><div>Overlapping windows</div><div style="color:var(--muted)">UI blocks Run Comparison button + shows error</div></div>
+        <div class="g-row"><div><span class="tag tag-purple">G10</span></div><div>No external calls</div><div style="color:var(--muted)">All tools call only local SQLite — fully offline capable</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 9: API Swap ══════════════════════════════════════ -->
+  <div class="slide" id="slide-8">
+    <div style="width:100%; max-width:840px; text-align:center;">
+      <div class="eyebrow">Production Readiness</div>
+      <h1 class="slide-title">One-line swap to<br>real Claude API</h1>
+      <div class="accent-bar" style="margin: 0 auto 1.5rem;"></div>
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.5rem; text-align:left; margin-bottom:1.5rem; font-family:'Cascadia Code','Fira Code',monospace; font-size:0.9rem; line-height:1.8;">
+        <div style="color:var(--muted)"># config.py — change ONLY these two lines</div>
+        <div><span style="color:#a5b4fc">USE_MOCK_LLM</span>      <span style="color:var(--muted)">=</span> <span style="color:#34d399">False</span></div>
+        <div><span style="color:#a5b4fc">ANTHROPIC_API_KEY</span> <span style="color:var(--muted)">=</span> <span style="color:#fbbf24">"sk-ant-..."</span></div>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="s-card green" style="text-align:center;">
+          <div style="font-size:1.3rem; margin-bottom:0.3rem;">✅</div>
+          <div style="font-size:0.82rem;">ReAct loop unchanged</div>
+        </div>
+        <div class="s-card green" style="text-align:center;">
+          <div style="font-size:1.3rem; margin-bottom:0.3rem;">✅</div>
+          <div style="font-size:0.82rem;">All 7 tools unchanged</div>
+        </div>
+        <div class="s-card green" style="text-align:center;">
+          <div style="font-size:1.3rem; margin-bottom:0.3rem;">✅</div>
+          <div style="font-size:0.82rem;">Memory &amp; trace unchanged</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 10: Demo Stats ═══════════════════════════════════ -->
+  <div class="slide" id="slide-9">
+    <div style="width:100%; max-width:960px;">
+      <div class="eyebrow">By the Numbers</div>
+      <h1 class="slide-title">What we built</h1>
+      <div class="accent-bar"></div>
+      <div class="card-grid cols-4" style="margin-bottom:1.5rem;">
+        <div class="s-card" style="text-align:center;">
+          <div class="big-stat">31</div>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.25rem;">Python source files</div>
+        </div>
+        <div class="s-card green" style="text-align:center;">
+          <div class="big-stat green">7</div>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.25rem;">Agent tools (SQLite)</div>
+        </div>
+        <div class="s-card amber" style="text-align:center;">
+          <div class="big-stat amber">10</div>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.25rem;">Safety guardrails</div>
+        </div>
+        <div class="s-card" style="text-align:center; border-color:var(--purple);">
+          <div class="big-stat" style="color:var(--purple);">3</div>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.25rem;">Demo anomaly events</div>
+        </div>
+      </div>
+      <div class="card-grid cols-2">
+        <div class="s-card">
+          <h3>✅ All Tests Pass</h3>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.4rem; line-height:1.7;">
+            DB init · 25,344 row seed · 4 platforms · 22 codes ·
+            5-min alignment · No negatives · Anomaly spike 4.4× ·
+            Agent snapshot · Agent comparison · Multi-turn memory ·
+            ERR_2003 +240% Degraded · HTTP 200 on launch
+          </div>
+        </div>
+        <div class="s-card green">
+          <h3>🚀 Running Live</h3>
+          <div style="font-size:0.78rem; color:var(--muted); margin-top:0.4rem; line-height:1.7;">
+            Streamlit app running at <code>http://localhost:8501</code><br>
+            Background engine ticking every 10s<br>
+            ARIA responding to natural language queries<br>
+            Anomaly memory persisting between sessions
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 11: Final / Quote ════════════════════════════════ -->
+  <div class="slide slide-hero" id="slide-10">
+    <div class="quote-block">
+      <span class="quote-mark">"</span>
+      <div class="quote-text">
+        What used to take an engineer 30 minutes of manual SQL and dashboard-hopping
+        now takes 10 seconds of natural language.
+      </div>
+      <div class="quote-attr" style="margin-top:2rem;">
+        <div style="font-size:1.5rem; font-weight:800; background:linear-gradient(135deg,#e2e8f0,#a5b4fc,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">ARIA</div>
+        <div style="margin-top:0.25rem; color:var(--muted);">Team LG_TDS_ENT · STB KPI Monitoring &amp; Agentic Analysis</div>
+      </div>
+      <div style="margin-top:2.5rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+        <span class="tag tag-indigo">📡 4 Platforms</span>
+        <span class="tag tag-green">📊 22 Metrics</span>
+        <span class="tag tag-purple">🤖 ReAct Agent</span>
+        <span class="tag tag-amber">🔒 10 Guardrails</span>
+        <span class="tag tag-blue">✅ All Tests Pass</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button class="nav-btn" id="prev-btn" onclick="navigate(-1)" disabled>← Prev</button>
+  <div class="dots" id="dots"></div>
+  <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next →</button>
+</div>
+
+<script>
+  const TOTAL = 11;
+  let current = 0;
+
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsEl = document.getElementById('dots');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const progress = document.getElementById('progress');
+  const slideNum = document.getElementById('slide-num');
+
+  // Build dots
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  }
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    slides[current].classList.add('prev');
+    setTimeout(() => slides[n < current ? n + 1 : current].classList.remove('prev'), 500);
+
+    current = n;
+    slides[current].classList.add('active');
+
+    // Update dots
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+
+    // Progress bar
+    progress.style.width = ((current + 1) / TOTAL * 100) + '%';
+
+    // Slide number
+    slideNum.textContent = `${current + 1} / ${TOTAL}`;
+
+    // Buttons
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === TOTAL - 1;
+  }
+
+  function navigate(dir) {
+    const n = current + dir;
+    if (n >= 0 && n < TOTAL) goTo(n);
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      navigate(1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      navigate(-1);
+    }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End')  goTo(TOTAL - 1);
+  });
+
+  // Init
+  goTo(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — System Architecture | LG_TDS_ENT</title>
+<style>
+  :root {
+    --bg:        #0f1117;
+    --surface:   #1a1d27;
+    --border:    #2a2d3d;
+    --accent:    #6366f1;
+    --accent2:   #10b981;
+    --accent3:   #f59e0b;
+    --danger:    #ef4444;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --blue:      #3b82f6;
+    --purple:    #8b5cf6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 0.25rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--accent); margin-bottom: 0.5rem; }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2.5rem; }
+  .team-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    color: white;
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 0.75rem;
+    vertical-align: middle;
+  }
+
+  /* ── Grid layouts ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .card.accent-left { border-left: 3px solid var(--accent); }
+  .card.green-left  { border-left: 3px solid var(--accent2); }
+  .card.amber-left  { border-left: 3px solid var(--accent3); }
+  .card.red-left    { border-left: 3px solid var(--danger); }
+  .card.blue-left   { border-left: 3px solid var(--blue); }
+  .card.purple-left { border-left: 3px solid var(--purple); }
+
+  /* ── Architecture diagram ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .arch-diagram::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 30%, rgba(99,102,241,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 70%, rgba(16,185,129,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .arch-row {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+  }
+  .arch-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    flex: 1;
+    font-size: 0.85rem;
+    position: relative;
+  }
+  .arch-box.highlight-indigo { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(99,102,241,0.2); }
+  .arch-box.highlight-green  { border-color: var(--accent2); box-shadow: 0 0 0 1px rgba(16,185,129,0.2); }
+  .arch-box.highlight-amber  { border-color: var(--accent3); box-shadow: 0 0 0 1px rgba(245,158,11,0.2); }
+  .arch-box.highlight-red    { border-color: var(--danger); box-shadow: 0 0 0 1px rgba(239,68,68,0.2); }
+  .arch-box.highlight-blue   { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(59,130,246,0.2); }
+  .arch-box.highlight-purple { border-color: var(--purple); box-shadow: 0 0 0 1px rgba(139,92,246,0.2); }
+  .arch-box-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+  .arch-box-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+  .arch-box ul {
+    list-style: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .arch-box ul li::before { content: '▸ '; color: var(--accent); }
+
+  .arrow-down {
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--muted);
+    margin: 0.25rem 0;
+    line-height: 1;
+  }
+  .arrow-label {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    font-style: italic;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+  th {
+    background: rgba(99,102,241,0.1);
+    color: var(--accent);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid rgba(42,45,61,0.5);
+    color: var(--text);
+  }
+  tr:hover td { background: rgba(99,102,241,0.04); }
+  code {
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.82em;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-left: 0.25rem;
+  }
+  .badge-green  { background: rgba(16,185,129,0.15); color: #34d399; }
+  .badge-amber  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-red    { background: rgba(239,68,68,0.15);  color: #f87171; }
+  .badge-blue   { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .badge-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .badge-indigo { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.75rem 0;
+    font-size: 0.83rem;
+  }
+  .flow-step {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.7rem;
+    white-space: nowrap;
+  }
+  .flow-step.active { border-color: var(--accent); color: #a5b4fc; }
+  .flow-arrow { color: var(--muted); font-size: 1rem; }
+
+  /* ── Stat cards ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  @media (max-width: 800px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+
+  section { margin-bottom: 3rem; }
+  .section-number {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    width: 1.6rem; height: 1.6rem;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 1.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<header style="margin-bottom: 2.5rem;">
+  <h1>ARIA — STB KPI Monitoring <span class="team-badge">LG_TDS_ENT</span></h1>
+  <p class="subtitle">Automated Root-cause &amp; Insights Analyst · System Architecture Reference</p>
+</header>
+
+<!-- ── Stat overview ─────────────────────────────────────── -->
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-value">25,344</div><div class="stat-label">Seeded rows (24h history)</div></div>
+  <div class="stat-card"><div class="stat-value">88</div><div class="stat-label">Records per 5-min tick</div></div>
+  <div class="stat-card"><div class="stat-value">7</div><div class="stat-label">ARIA agent tools</div></div>
+  <div class="stat-card"><div class="stat-value">22</div><div class="stat-label">Metric codes monitored</div></div>
+</div>
+
+<!-- ── Section 1: End-to-End Architecture ─────────────────── -->
+<section>
+  <h2><span class="section-number">1</span>End-to-End Architecture</h2>
+  <div class="arch-diagram">
+
+    <!-- Subsystem A -->
+    <div class="arch-row">
+      <div class="arch-box highlight-indigo" style="flex:2">
+        <div class="arch-box-label">Subsystem A — Background Data Engine (daemon thread)</div>
+        <div class="arch-box-title">APScheduler BackgroundScheduler</div>
+        <div style="display:flex; gap:1rem; margin-top:0.5rem; flex-wrap:wrap;">
+          <div style="flex:1; min-width:150px;">
+            <div style="font-size:0.78rem; color:var(--accent); font-weight:600;">metric_ingest</div>
+            <div style="font-size:0.78rem; color:var(--muted);">Every 10s (DEMO) / 300s</div>
+            <div style="font-size:0.78rem; color:var(--muted);">→ 88 records/tick</div>
+          </div>
+          <div style="flex:1; min-width:150px;">
+            <div style="font-size:0.78rem; color:var(--accent); font-weight:600;">anomaly_scan</div>
+            <div style="font-size:0.78rem; color:var(--muted);">Every 120s</div>
+            <div style="font-size:0.78rem; color:var(--muted);">→ writes agent_memory</div>
+          </div>
+          <div style="flex:1; min-width:150px;">
+            <div style="font-size:0.78rem; color:var(--accent); font-weight:600;">data_retention</div>
+            <div style="font-size:0.78rem; color:var(--muted);">Every 1h</div>
+            <div style="font-size:0.78rem; color:var(--muted);">→ purge &gt; 48h</div>
+          </div>
+        </div>
+      </div>
+      <div class="arch-box highlight-amber" style="flex:1">
+        <div class="arch-box-label">First Launch Only</div>
+        <div class="arch-box-title">seed_data.run_seed()</div>
+        <ul>
+          <li>288 timestamps</li>
+          <li>× 4 platforms</li>
+          <li>× 22 codes</li>
+          <li>= 25,344 rows</li>
+          <li>+ demo anomalies</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+    <div class="arrow-label">WRITES (sole writer)</div>
+
+    <!-- SQLite -->
+    <div class="arch-row">
+      <div class="arch-box highlight-green" style="flex:1; text-align:center; padding: 1rem;">
+        <div class="arch-box-label">Shared State</div>
+        <div class="arch-box-title" style="font-size:1.1rem;">🗄️ stb_metrics.db</div>
+        <div style="display:flex; justify-content:center; gap:0.75rem; flex-wrap:wrap; margin-top:0.75rem;">
+          <span class="badge badge-blue">metrics</span>
+          <span class="badge badge-green">seed_status</span>
+          <span class="badge badge-purple">agent_conversation</span>
+          <span class="badge badge-amber">agent_memory</span>
+          <span class="badge badge-indigo">agent_trace</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+    <div class="arrow-label">READS (all consumers read-only)</div>
+
+    <!-- Subsystem B: Dashboard + Agent -->
+    <div class="arch-row">
+      <div class="arch-box highlight-blue" style="flex:1.2">
+        <div class="arch-box-label">Subsystem B — Streamlit Dashboard</div>
+        <div class="arch-box-title">3 Live Monitoring Panels</div>
+        <ul>
+          <li>Panel 1: Error Rate Monitor (ERR_2001–2008)</li>
+          <li>Panel 2: Crash Rate Tracker (CRR_3001–3008)</li>
+          <li>Panel 3: Resource Utilization (CPU / Memory)</li>
+          <li>KPI Analyzer (Window / Point / Baseline)</li>
+        </ul>
+      </div>
+      <div class="arch-box highlight-purple" style="flex:1.2">
+        <div class="arch-box-label">Subsystem B — ARIA Agent (ReAct)</div>
+        <div class="arch-box-title">agent_core.run_agent()</div>
+        <ul>
+          <li>mock_llm.create() → real Claude API</li>
+          <li>7 tool implementations</li>
+          <li>Short-term + long-term memory</li>
+          <li>Observability trace</li>
+        </ul>
+      </div>
+      <div class="arch-box" style="flex:0.6">
+        <div class="arch-box-label">User</div>
+        <div class="arch-box-title">Operations Engineer</div>
+        <ul>
+          <li>Sidebar filters</li>
+          <li>KPI Analyzer</li>
+          <li>ARIA chat input</li>
+          <li>Suggestion chips</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Section 2: Metric Code Registry ──────────────────── -->
+<section>
+  <h2><span class="section-number">2</span>Metric Code Registry</h2>
+  <div class="grid-3">
+    <div class="card blue-left">
+      <h3>Error Codes — <code>error_rate</code></h3>
+      <table>
+        <thead><tr><th>Code</th><th>Category</th><th>Baseline/1k</th></tr></thead>
+        <tbody>
+          <tr><td><code>ERR_2001</code></td><td>Playback</td><td>2.5</td></tr>
+          <tr><td><code>ERR_2002</code></td><td>Playback</td><td>1.2</td></tr>
+          <tr><td><code>ERR_2003</code></td><td>DRM <span class="badge badge-red">ANOMALY</span></td><td>3.1</td></tr>
+          <tr><td><code>ERR_2004</code></td><td>DRM <span class="badge badge-red">ANOMALY</span></td><td>0.8</td></tr>
+          <tr><td><code>ERR_2005</code></td><td>System</td><td>1.5</td></tr>
+          <tr><td><code>ERR_2006</code></td><td>System</td><td>4.2</td></tr>
+          <tr><td><code>ERR_2007</code></td><td>System</td><td>2.0</td></tr>
+          <tr><td><code>ERR_2008</code></td><td>System</td><td>0.6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card purple-left">
+      <h3>Crash Codes — <code>crash_rate</code></h3>
+      <table>
+        <thead><tr><th>Code</th><th>Category</th><th>Baseline/1k</th></tr></thead>
+        <tbody>
+          <tr><td><code>CRR_3001</code></td><td>Boot</td><td>0.3</td></tr>
+          <tr><td><code>CRR_3002</code></td><td>Memory <span class="badge badge-amber">ANOMALY</span></td><td>1.8</td></tr>
+          <tr><td><code>CRR_3003</code></td><td>Boot</td><td>0.5</td></tr>
+          <tr><td><code>CRR_3004</code></td><td>Process</td><td>1.1</td></tr>
+          <tr><td><code>CRR_3005</code></td><td>Process</td><td>0.9</td></tr>
+          <tr><td><code>CRR_3006</code></td><td>Memory <span class="badge badge-amber">ANOMALY</span></td><td>0.4</td></tr>
+          <tr><td><code>CRR_3007</code></td><td>Boot</td><td>0.2</td></tr>
+          <tr><td><code>CRR_3008</code></td><td>Boot</td><td>0.1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card green-left">
+      <h3>Resource Metrics</h3>
+      <table>
+        <thead><tr><th>Code</th><th>Type</th><th>Baseline</th><th>Unit</th></tr></thead>
+        <tbody>
+          <tr><td><code>CPU_AVG</code></td><td>cpu_util</td><td>55.0</td><td>%</td></tr>
+          <tr><td><code>CPU_P95</code></td><td>cpu_util <span class="badge badge-amber">ANOMALY</span></td><td>72.0</td><td>%</td></tr>
+          <tr><td><code>MEM_FREE_AVG</code></td><td>mem_util</td><td>180.0</td><td>MB</td></tr>
+          <tr><td><code>MEM_HEAP_USED</code></td><td>mem_util</td><td>320.0</td><td>MB</td></tr>
+          <tr><td><code>MEM_SWAP_USED</code></td><td>mem_util</td><td>45.0</td><td>MB</td></tr>
+          <tr><td><code>THERMAL_THROTTLE</code></td><td>mem_util</td><td>50.0</td><td>count</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 3: Demo Anomaly Events ──────────────────── -->
+<section>
+  <h2><span class="section-number">3</span>Pre-Wired Demo Anomaly Events</h2>
+  <div class="grid-3">
+    <div class="card red-left">
+      <h3>🔴 DRM Outage — Apollo</h3>
+      <table>
+        <tr><td style="color:var(--muted)">Codes</td><td><code>ERR_2003</code>, <code>ERR_2004</code></td></tr>
+        <tr><td style="color:var(--muted)">Window</td><td>T−4h to T−2h</td></tr>
+        <tr><td style="color:var(--muted)">Multiplier</td><td><strong>4.5×</strong> normal rate</td></tr>
+        <tr><td style="color:var(--muted)">Observed</td><td>+240% vs baseline</td></tr>
+      </table>
+      <div style="margin-top:0.75rem; font-size:0.78rem; color:var(--muted);">
+        Simulates DRM license server outage causing mass playback failures on Apollo fleet
+      </div>
+    </div>
+    <div class="card amber-left">
+      <h3>🟡 OOM Crash Wave — EOS</h3>
+      <table>
+        <tr><td style="color:var(--muted)">Codes</td><td><code>CRR_3002</code>, <code>CRR_3006</code></td></tr>
+        <tr><td style="color:var(--muted)">Window</td><td>T−3h to T−2.5h</td></tr>
+        <tr><td style="color:var(--muted)">Multiplier</td><td><strong>3.0×</strong> normal rate</td></tr>
+        <tr><td style="color:var(--muted)">Observed</td><td>Crash storm trigger</td></tr>
+      </table>
+      <div style="margin-top:0.75rem; font-size:0.78rem; color:var(--muted);">
+        Simulates memory pressure causing OOM kills and crash loops on EOS devices
+      </div>
+    </div>
+    <div class="card green-left">
+      <h3>🟢 CPU Spike — Horizon</h3>
+      <table>
+        <tr><td style="color:var(--muted)">Codes</td><td><code>CPU_AVG</code>, <code>CPU_P95</code></td></tr>
+        <tr><td style="color:var(--muted)">Window</td><td>T−1.5h to T−1h</td></tr>
+        <tr><td style="color:var(--muted)">Multiplier</td><td><strong>1.6×</strong> normal rate</td></tr>
+        <tr><td style="color:var(--muted)">Observed</td><td>Thermal throttle shading</td></tr>
+      </table>
+      <div style="margin-top:0.75rem; font-size:0.78rem; color:var(--muted);">
+        Simulates CPU spike pushing devices into thermal throttling on Horizon platform
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 4: ARIA Agent Architecture ──────────────── -->
+<section>
+  <h2><span class="section-number">4</span>ARIA ReAct Agent Architecture</h2>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3>ReAct Loop Flow</h3>
+    <div class="flow">
+      <div class="flow-step active">User Message</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step active">Load Short-term Memory</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step active">mock_llm.create()</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step active">tool_use?</div>
+    </div>
+    <div style="margin-left:3rem;">
+      <div class="flow" style="margin-bottom:0.25rem;">
+        <div class="flow-arrow">├─ YES →</div>
+        <div class="flow-step">dispatch_tool(name, input)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">append tool_result</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step active">loop (max 6×)</div>
+      </div>
+      <div class="flow">
+        <div class="flow-arrow">└─ NO →</div>
+        <div class="flow-step">extract final text</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">save_short_term()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step active">return (text, trace)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:1.5rem;">
+    <div class="card accent-left">
+      <h3>Tool 1: query_metrics</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Parameterized timeseries query with GROUP BY aggregation.<br>
+        <span class="badge badge-red">G2</span> Rejects ranges &gt; 48h
+      </div>
+    </div>
+    <div class="card accent-left">
+      <h3>Tool 2: compare_kpi_windows</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Delta between Window A and Window B. Returns Degraded/Improved/Stable.<br>
+        Handles <code>+inf%</code> for zero-baseline codes
+      </div>
+    </div>
+    <div class="card accent-left">
+      <h3>Tool 3: detect_anomalies</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Z-score vs 24h rolling baseline. Writes to <code>agent_memory</code>.<br>
+        Warning z≥2.0, Critical z≥3.0
+      </div>
+    </div>
+    <div class="card accent-left">
+      <h3>Tool 4: get_top_movers</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Top N KPIs by |pct_change|. Delegates to compare_kpi_windows.<br>
+        Filter: degraded / improved / both
+      </div>
+    </div>
+    <div class="card accent-left">
+      <h3>Tool 5: get_current_snapshot</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Latest 5-min window only (not a timeseries). <br>
+        Fastest tool — single-timestamp query
+      </div>
+    </div>
+    <div class="card accent-left">
+      <h3>Tool 6: resolve_time_reference</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        NLP → ISO 8601 (5-min snapped).<br>
+        Handles: 3PM, 14:00, 2h ago, this morning, yesterday
+      </div>
+    </div>
+  </div>
+  <div class="card accent-left" style="max-width:33%;">
+    <h3>Tool 7: summarize_panel</h3>
+    <div style="font-size:0.8rem; color:var(--muted);">
+      Trend (first-half vs second-half), top codes, threshold breaches, narrative.
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 5: Memory Architecture ────────────────── -->
+<section>
+  <h2><span class="section-number">5</span>Agent Memory Architecture</h2>
+  <div class="grid-2">
+    <div class="card blue-left">
+      <h3>Short-Term Memory — <code>agent_conversation</code></h3>
+      <table>
+        <tr><td style="color:var(--muted)">Scope</td><td>Per session_id</td></tr>
+        <tr><td style="color:var(--muted)">Retention</td><td>Last 20 turns (auto-trim)</td></tr>
+        <tr><td style="color:var(--muted)">Loaded</td><td>On every <code>run_agent()</code> call</td></tr>
+        <tr><td style="color:var(--muted)">Saved</td><td>After every <code>end_turn</code></td></tr>
+        <tr><td style="color:var(--muted)">Trim timing</td><td>Between turns only — never mid-loop</td></tr>
+      </table>
+    </div>
+    <div class="card purple-left">
+      <h3>Long-Term Memory — <code>agent_memory</code></h3>
+      <table>
+        <tr><td style="color:var(--muted)">Written by</td><td><code>detect_anomalies</code> tool</td></tr>
+        <tr><td style="color:var(--muted)">Retention</td><td>7 days (auto-purge on write)</td></tr>
+        <tr><td style="color:var(--muted)">Dedup</td><td>Skip if (code, platform) within 30 min</td></tr>
+        <tr><td style="color:var(--muted)">Queried when</td><td>"has this happened before?"</td></tr>
+        <tr><td style="color:var(--muted)">Injection</td><td>Prepended to system context</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 6: Guardrails ─────────────────────────── -->
+<section>
+  <h2><span class="section-number">6</span>Guardrails &amp; Safety Constraints</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Guardrail</th><th>Layer</th><th>Behavior</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-red">G1</span></td><td>Max 6 iterations</td><td><code>agent_core.py</code></td><td>Returns partial findings with explanation</td></tr>
+        <tr><td><span class="badge badge-red">G2</span></td><td>48-hour query cap</td><td><code>query_metrics</code></td><td>Returns error status; agent explains to user</td></tr>
+        <tr><td><span class="badge badge-amber">G3</span></td><td>No data fabrication</td><td>System prompt + contract</td><td>Empty data → explicit "no data" message</td></tr>
+        <tr><td><span class="badge badge-amber">G4</span></td><td>Scope clarification</td><td>Intent routing</td><td>Ambiguous → snapshot + ask user</td></tr>
+        <tr><td><span class="badge badge-green">G5</span></td><td>Read-only tools</td><td><code>agent_tools.py</code></td><td>No INSERT/UPDATE/DELETE in any tool</td></tr>
+        <tr><td><span class="badge badge-green">G6</span></td><td>300-word prose cap</td><td>System prompt</td><td>Long outputs → structured tables</td></tr>
+        <tr><td><span class="badge badge-blue">G7</span></td><td>Hallucination check</td><td>System prompt rule 2</td><td>All numbers must trace to tool result in turn</td></tr>
+        <tr><td><span class="badge badge-blue">G8</span></td><td>Divide-by-zero</td><td><code>kpi_comparator.py</code></td><td>Returns <code>"+inf%"</code>, never raises</td></tr>
+        <tr><td><span class="badge badge-purple">G9</span></td><td>Overlapping windows</td><td><code>ui/time_slider.py</code></td><td>UI warns + disables Run button</td></tr>
+        <tr><td><span class="badge badge-purple">G10</span></td><td>No external calls</td><td><code>agent_tools.py</code></td><td>All tools call only local SQLite functions</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ── Section 7: Database Schema ────────────────────── -->
+<section>
+  <h2><span class="section-number">7</span>Database Schema</h2>
+  <div class="grid-2">
+    <div class="card green-left">
+      <h3><code>metrics</code> — Primary timeseries store</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraint</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>INTEGER</td><td>PK AUTOINCREMENT</td></tr>
+          <tr><td><code>timestamp</code></td><td>TEXT</td><td>NOT NULL, ISO 8601, 5-min snapped</td></tr>
+          <tr><td><code>platform</code></td><td>TEXT</td><td>NOT NULL</td></tr>
+          <tr><td><code>metric_type</code></td><td>TEXT</td><td>NOT NULL</td></tr>
+          <tr><td><code>code</code></td><td>TEXT</td><td>NOT NULL</td></tr>
+          <tr><td><code>stb_count</code></td><td>INTEGER</td><td>NOT NULL, ≥ 1</td></tr>
+          <tr><td><code>event_count</code></td><td>INTEGER</td><td>NOT NULL, ≥ 0</td></tr>
+          <tr><td><code>rate_per_1000</code></td><td>REAL</td><td>= (event_count/stb_count)×1000</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:0.75rem; font-size:0.78rem; color:var(--muted);">
+        Indexes: <code>idx_metrics_main</code> (timestamp, platform, metric_type, code) &nbsp;·&nbsp;
+        <code>idx_metrics_time</code> (timestamp)
+      </div>
+    </div>
+    <div>
+      <div class="card amber-left" style="margin-bottom:1rem;">
+        <h3><code>agent_memory</code> — Long-term anomaly observations</h3>
+        <table>
+          <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>timestamp</code></td><td>When observation was written</td></tr>
+            <tr><td><code>code</code>, <code>platform</code></td><td>Dedup key (30-min bucket)</td></tr>
+            <tr><td><code>observation</code></td><td>z-score + observed + baseline</td></tr>
+            <tr><td><code>severity</code></td><td>warning | critical</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card accent-left">
+        <h3><code>agent_trace</code> — Observability log</h3>
+        <table>
+          <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>session_id</code>, <code>turn_id</code>, <code>step</code></td><td>Composite key</td></tr>
+            <tr><td><code>tool_name</code>, <code>tool_input</code></td><td>What was called</td></tr>
+            <tr><td><code>tool_output</code></td><td>Truncated to 2000 chars</td></tr>
+            <tr><td><code>duration_ms</code>, <code>status</code></td><td>Perf + outcome</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 8: Platform & Scale ──────────────────── -->
+<section>
+  <h2><span class="section-number">8</span>Platform Scale Factors</h2>
+  <div class="grid-4">
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.5rem;">Apollo</div>
+      <div style="font-size:1.5rem; font-weight:700; color:var(--accent2); margin-top:0.25rem;">1.0×</div>
+      <div class="stat-label">10,000 STBs (reference)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.5rem;">EOS</div>
+      <div style="font-size:1.5rem; font-weight:700; color:var(--blue); margin-top:0.25rem;">0.75×</div>
+      <div class="stat-label">7,500 STBs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.5rem;">Horizon</div>
+      <div style="font-size:1.5rem; font-weight:700; color:var(--purple); margin-top:0.25rem;">0.55×</div>
+      <div class="stat-label">5,500 STBs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.5rem;">Liberty</div>
+      <div style="font-size:1.5rem; font-weight:700; color:var(--accent3); margin-top:0.25rem;">0.40×</div>
+      <div class="stat-label">4,000 STBs</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 9: API Swap ────────────────────────────── -->
+<section>
+  <h2><span class="section-number">9</span>One-Line Real Claude API Swap</h2>
+  <div class="card green-left">
+    <div style="font-size:0.9rem; margin-bottom:0.75rem;">
+      The entire application runs in mock mode by default — no API key needed for the demo.
+      To switch to real Claude, only <strong>two values</strong> in <code>config.py</code> need changing:
+    </div>
+    <div style="background:var(--bg); border-radius:8px; padding:1rem; font-family:'Cascadia Code','Fira Code',monospace; font-size:0.85rem; border:1px solid var(--border);">
+      <span style="color:var(--muted)"># config.py — change these two lines only</span><br>
+      <span style="color:#a5b4fc">USE_MOCK_LLM</span>      <span style="color:var(--muted)">= </span><span style="color:#34d399">False</span><br>
+      <span style="color:#a5b4fc">ANTHROPIC_API_KEY</span> <span style="color:var(--muted)">= </span><span style="color:#fbbf24">"sk-ant-..."</span>
+    </div>
+    <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--muted);">
+      The ReAct loop, tool dispatch, memory, observability, and all panels work identically.
+      The mock_llm.create() function routes to the real SDK automatically.
+    </div>
+  </div>
+</section>
+
+<footer style="margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:0.8rem; text-align:center;">
+  ARIA STB KPI Analyzer · Team <strong>LG_TDS_ENT</strong> · Built with Streamlit + Plotly + APScheduler + Claude SDK
+</footer>
+
+</body>
+</html>
